@@ -1,13 +1,14 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { database } from "./db";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import OpenAI from "openai";
 import { ImageAnalysisResponse, InsertImage, Image } from "@shared/schema";
-import sharp from "sharp";
+import { r2Storage } from "./r2-storage";
+import axios from "axios";
 
 // Define a custom Request interface with file from multer
 interface MulterRequest extends Request {
@@ -17,13 +18,13 @@ interface MulterRequest extends Request {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (temporary storage)
 const uploadsDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file uploads
+// Configure multer for file uploads (temporary storage)
 const storage_config = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, uploadsDir);
@@ -47,14 +48,41 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
     // Initialize OpenAI client inside the function to ensure environment variables are loaded
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
     // Log the OpenAI API key status (not the actual key) for debugging
     console.log("OpenAI API Key status:", process.env.OPENAI_API_KEY ? "Key is set" : "Key is missing");
-    // put application routes here
-    // prefix all routes with /api
+    console.log("R2 Storage status:", process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ? "R2 credentials set" : "R2 credentials missing");
+
+    // Helper function to get signed URLs for image keys
+    async function getSignedUrls(image: Image) {
+        if (!image) return null;
+
+        try {
+            // Get signed URLs for both original and detoxified images
+            const originalImageUrl = image.originalImageKey
+                ? await r2Storage.getImageUrl(image.originalImageKey)
+                : "";
+
+            const detoxifiedImageUrl = image.detoxifiedImageKey
+                ? await r2Storage.getImageUrl(image.detoxifiedImageKey)
+                : "";
+
+            return {
+                ...image,
+                originalImageUrl,
+                detoxifiedImageUrl
+            };
+        } catch (error) {
+            console.error("Error generating signed URLs:", error);
+            return {
+                ...image,
+                originalImageUrl: "",
+                detoxifiedImageUrl: ""
+            };
+        }
+    }
 
     // Endpoint to get image analysis by ID
     app.get("/api/images/:id", async (req, res) => {
@@ -64,20 +92,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: "Invalid image ID" });
             }
 
-            const image = await storage.getImage(imageId);
+            const image = await database.getImage(imageId);
             if (!image) {
                 return res.status(404).json({ message: "Image not found" });
             }
 
-            // The diagnosisPoints and treatmentPoints are already arrays in the database schema
+            // Get signed URLs for the images
+            const imageWithUrls = await getSignedUrls(image);
 
             const result: ImageAnalysisResponse = {
                 id: image.id,
                 diagnosisPoints: image.diagnosisPoints || [],
                 treatmentPoints: image.treatmentPoints || [],
                 contaminationLevel: image.contaminationLevel || 0,
-                detoxifiedImageUrl: image.detoxifiedImageUrl || "",
-                originalImageUrl: image.originalImageUrl || "",
+                detoxifiedImageUrl: (imageWithUrls === null) ? "" : (imageWithUrls.detoxifiedImageUrl || ""),
+                originalImageUrl: (imageWithUrls === null) ? "" : (imageWithUrls.originalImageUrl || ""),
                 shareableUrl: `/deghib/${image.id}`,
             };
 
@@ -92,19 +121,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Endpoint to get list of recent images for gallery
-    app.get("/api/images", async (req, res) => {
+    app.get("/api/images", async (req, res): Promise<void> => {
         try {
             // Just get all images for now, can add pagination later if needed
-            const images = await storage.getAllImages();
+            const images = await database.getAllPublicImages();
 
-            // Map to simpler format for gallery display
-            const galleryItems = images.map((image) => ({
-                id: image.id,
-                detoxifiedImageUrl: image.detoxifiedImageUrl || "",
-                originalImageUrl: image.originalImageUrl || "",
-                contaminationLevel: image.contaminationLevel || 0,
-            }));
+            // Get signed URLs for all images and create gallery items
+            const galleryItemsPromises = images.map(async (image) => {
+                const imageWithUrls = await getSignedUrls(image);
+                return {
+                    id: image.id,
+                    detoxifiedImageUrl: (imageWithUrls === null) ? "" : (imageWithUrls.detoxifiedImageUrl || ""),
+                    originalImageUrl: (imageWithUrls === null) ? "" : (imageWithUrls.originalImageUrl || ""),
+                    contaminationLevel: image.contaminationLevel || 0,
+                };
+            });
 
+            const galleryItems = await Promise.all(galleryItemsPromises);
             res.status(200).json(galleryItems);
         } catch (error: any) {
             console.error("Error fetching images:", error);
@@ -118,15 +151,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Endpoint to analyze image and generate detoxified version
     app.post(
         "/api/analyze",
-        (req, res, next) => {
-            console.log("Request headers:", req.headers);
-            console.log("Request body keys:", Object.keys(req.body || {}));
-            next();
-        },
         upload.single("image"),
         async (req: MulterRequest, res: Response) => {
             try {
-                console.log("After multer middleware");
                 console.log("File received:", req.file);
 
                 if (!req.file) {
@@ -139,6 +166,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 // Convert image to base64 for analysis
                 const base64Image = imageBuffer.toString("base64");
+
+                // Upload original image to R2
+                const contentType = req.file.mimetype;
+                const originalImageKey = await r2Storage.uploadImage(imageBuffer, contentType);
+                console.log("Original image uploaded to R2 with key:", originalImageKey);
 
                 // Analyze image with OpenAI Vision
                 const analysisResponse = await openai.chat.completions.create({
@@ -168,15 +200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     response_format: { type: "json_object" },
                     max_tokens: 500,
                 });
-                console.log("Analysis response:", analysisResponse);
+
                 // Parse the analysis
                 const analysis = JSON.parse(
                     analysisResponse.choices[0].message.content || "{}",
                 );
-                console.log("Analysis  :", analysis);
-                console.log("Diagnosis points:", analysis.diagnosis_points);
-                console.log("Treatment points:", analysis.treatment_points);
-                console.log("COntamination level:", analysis.contamination_level);
+                console.log("Analysis:", analysis);
+
                 // Create new image based on description of the original but without Ghibli elements
                 const sceneDescription = analysis.description || "";
 
@@ -193,41 +223,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     quality: "hd",
                 });
 
-                // Save data to storage
-                // Get the filename from the path to create a URL-friendly path for the original image
-                const originalImageFilename = path.basename(req.file.path);
+                // Get detoxified image URL and download it
+                const detoxifiedImageUrl = imageResponse.data[0].url || "";
 
+                // Download the detoxified image and upload to R2
+                const detoxifiedImageResponse = await axios.get(detoxifiedImageUrl, { responseType: 'arraybuffer' });
+                const detoxifiedImageBuffer = Buffer.from(detoxifiedImageResponse.data);
+
+                // Upload detoxified image to R2
+                const detoxifiedImageKey = await r2Storage.uploadImage(detoxifiedImageBuffer, 'image/png');
+                console.log("Detoxified image uploaded to R2 with key:", detoxifiedImageKey);
+
+                // Get the signed URLs for both images (for direct response to client)
+                const originalImgUrl = await r2Storage.getImageUrl(originalImageKey);
+                const detoxifiedImgUrl = await r2Storage.getImageUrl(detoxifiedImageKey);
+
+                // Save data to database
                 const imageData: InsertImage = {
-                    originalImageUrl: `/uploads/${originalImageFilename}`, // Set the path to access the uploaded file
-                    detoxifiedImageUrl: imageResponse.data[0].url || "",
+                    originalImageKey: originalImageKey,
+                    detoxifiedImageKey: detoxifiedImageKey,
                     diagnosisPoints: analysis.diagnosis_points || [],
                     treatmentPoints: analysis.treatment_points || [],
                     contaminationLevel: analysis.contamination_level || 50,
                     userId: null, // No user authentication for now
-                    shareableUrl: `/deghib/${Date.now()}` // Will be updated with actual ID after save
+                    description: sceneDescription,
+                    isPublic: true,  // All images are public by default
                 };
 
-                const savedImage = await storage.saveImage(imageData);
+                const savedImage = await database.saveImage(imageData);
 
                 // Create response with link to shareable page
-                // Update shareableUrl with the actual ID
-                const updatedImageData = {
-                    ...savedImage,
-                    shareableUrl: `/deghib/${savedImage.id}`
-                };
-
                 const result: ImageAnalysisResponse = {
+                    id: savedImage.id,
                     diagnosisPoints: analysis.diagnosis_points || [],
                     treatmentPoints: analysis.treatment_points || [],
                     contaminationLevel: analysis.contamination_level || 50,
-                    detoxifiedImageUrl: imageResponse.data[0].url || "",
-                    id: savedImage.id,
+                    detoxifiedImageUrl: detoxifiedImgUrl,
+                    originalImageUrl: originalImgUrl,
                     shareableUrl: `/deghib/${savedImage.id}`,
-                    originalImageUrl: savedImage.originalImageUrl || ""
+                    description: sceneDescription
                 };
 
-                // We're now keeping the original image file for display
-                // rather than deleting it
+                // Remove temporary file from uploads directory
+                fs.unlinkSync(imagePath);
 
                 res.status(200).json(result);
             } catch (error: any) {
@@ -249,6 +287,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     errorMessage =
                         "Error accessing the image file. Please try uploading again.";
                     statusCode = 400;
+                }
+
+                // Try to clean up the temporary file if it exists
+                if (req.file && req.file.path) {
+                    try {
+                        fs.unlinkSync(req.file.path);
+                    } catch (err) {
+                        console.error("Error cleaning up temporary file:", err);
+                    }
                 }
 
                 res.status(statusCode).json({
