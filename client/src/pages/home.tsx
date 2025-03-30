@@ -8,7 +8,7 @@ export default function Home() {
     <div className="bg-gray-50 text-clinic-text">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 1. Medical-Grade Ghibli Detoxification */}
-        <section className="py-8 md:py-12">
+        <section className="pt-0 pb-0 ">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-4">
               <div className="inline-flex items-center px-4 py-1.5 mb-4 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
