@@ -46,10 +46,13 @@ const upload = multer({
     },
 });
 
-// Initialize OpenAI client
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
-
 export async function registerRoutes(app: Express): Promise<Server> {
+
+    // Initialize OpenAI client inside the function to ensure environment variables are loaded
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+
+    // Log the OpenAI API key status (not the actual key) for debugging
+    console.log("OpenAI API Key status:", process.env.OPENAI_API_KEY ? "Key is set" : "Key is missing");
     // put application routes here
     // prefix all routes with /api
 

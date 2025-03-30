@@ -12,8 +12,26 @@
   }
 
   :root {
+    --radius: 0.5rem;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
     --primary: 210 100% 50%; /* Vibrant blue */
     --primary-foreground: 0 0% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
     --clinic-blue: 210 100% 50%;
     --clinic-blue-dark: 210 100% 40%;
   }
@@ -23,16 +41,20 @@
   .ai-card {
     @apply bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-xl;
   }
-  
+
   .ai-gradient-bg {
     @apply bg-gradient-to-br from-blue-500 to-blue-600;
   }
-  
+
   .ai-button-primary {
-    @apply px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm;
+    @apply px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors duration-200 shadow-sm;
+    border-radius: 0.375rem; /* Explicit fallback */
+    @apply rounded-md; /* Will use CSS vars if available */
   }
-  
+
   .ai-button-secondary {
-    @apply px-4 py-2 bg-white text-blue-600 font-medium rounded-md border border-blue-200 hover:bg-blue-50 transition-colors duration-200 shadow-sm;
+    @apply px-4 py-2 bg-white text-blue-600 font-medium border border-blue-200 hover:bg-blue-50 transition-colors duration-200 shadow-sm;
+    border-radius: 0.375rem; /* Explicit fallback */
+    @apply rounded-md; /* Will use CSS vars if available */
   }
 }

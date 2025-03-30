@@ -4,6 +4,9 @@ import { registerRoutes } from "./routes";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+dotenv.config(); // This loads the .env file contents into process.env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -13,6 +16,7 @@ app.use(express.json());
 // Static file serving for uploaded images
 const uploadsPath = path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsPath));
+
 
 app.use((req, res, next) => {
   const start = Date.now();
