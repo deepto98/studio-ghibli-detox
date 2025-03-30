@@ -1,122 +1,144 @@
 import { Link, useLocation } from "wouter";
-import { Pill, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Pill, Menu, X, Images, BookOpen, Heart, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Navbar() {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+  
+  // Set a class on body when menu is open to prevent scrolling
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [mobileMenuOpen]);
+  
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+  
+  const navItems = [
+    { 
+      path: "/how-it-works", 
+      label: "How It Works", 
+      type: "regular",
+      icon: <BookOpen className="h-5 w-5 mr-2" />
+    },
+    { 
+      path: "/gallery", 
+      label: "Gallery", 
+      type: "regular",
+      icon: <Images className="h-5 w-5 mr-2" />
+    },
+    { 
+      path: "/relapse-prevention", 
+      label: "Relapse Prevention", 
+      type: "regular",
+      icon: <Heart className="h-5 w-5 mr-2" />
+    },
+    { 
+      path: "/", 
+      label: "Emergency Detox", 
+      type: "cta",
+      icon: <AlertCircle className="h-5 w-5 mr-2" />
+    }
+  ];
+  
   return (
-    <nav className="bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo and brand name */}
-          <div className="flex-shrink-0 flex items-center">
-            <Pill className="text-clinic-blue-dark h-6 w-6 mr-2" />
-            <Link href="/" className="font-bold text-xl">
-              Ghibli Detox Clinic
-            </Link>
-          </div>
-
-          {/* Desktop navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            <Link
-              href="/how-it-works"
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                location === "/how-it-works"
-                  ? "bg-gray-100"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              How It Works
-            </Link>
-            <Link
-              href="/gallery"
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                location === "/gallery" ? "bg-gray-100" : "hover:bg-gray-100"
-              }`}
-            >
-              Gallery
-            </Link>
-            <Link
-              href="/relapse-prevention"
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                location === "/relapse-prevention"
-                  ? "bg-gray-100"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              Relapse Prevention
-            </Link>
-            <Link
-              href="/"
-              className="ml-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-            >
-              Emergency Detox
-            </Link>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button
-              className="text-gray-500 hover:text-gray-700 focus:outline-none"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden pb-3 pt-1">
-            <div className="flex flex-col space-y-2">
-              <Link
-                href="/how-it-works"
-                className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                  location === "/how-it-works"
-                    ? "bg-gray-100"
-                    : "hover:bg-gray-100"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                How It Works
-              </Link>
-              <Link
+    <>
+      <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-blue-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            {/* Logo and brand name */}
+            <div className="flex-shrink-0 flex items-center">
+              <div className="flex items-center bg-blue-50 p-1 rounded-md">
+                <Pill className="text-blue-600 h-6 w-6 mr-1" />
+                <Link href="/" className="font-bold text-xl text-blue-800 tracking-tight">
+                  Ghibli Detox Clinic
+                </Link>
+              </div>
+            </div>
+            
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center space-x-2">
+              {navItems.map((item) => (
+                <Link 
+                  key={item.path}
+                  href={item.path} 
+                  className={`
+                    ${item.type === 'cta' 
+                      ? 'px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition-colors duration-200'
+                      : `px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                          location === item.path 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'hover:bg-gray-100 text-gray-700'
+                        }`
+                    }
+                  `}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+            
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center">
+              <Link 
                 href="/gallery"
-                className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                  location === "/gallery" ? "bg-gray-100" : "hover:bg-gray-100"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
+                className={`p-2 mr-1 rounded-md ${
+                  location === "/gallery" 
+                    ? "bg-blue-100 text-blue-800" 
+                    : "text-blue-600 hover:bg-blue-50"
+                } focus:outline-none`}
               >
-                Gallery
+                <Images className="h-6 w-6" />
               </Link>
-              <Link
-                href="/relapse-prevention"
-                className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                  location === "/relapse-prevention"
-                    ? "bg-gray-100"
-                    : "hover:bg-gray-100"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
+              <button 
+                onClick={toggleMobileMenu}
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
               >
-                Relapse Prevention
-              </Link>
-              <Link
-                href="/"
-                className="block px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Emergency Detox
-              </Link>
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
             </div>
           </div>
+        </div>
+        
+        {/* Mobile menu, show/hide based on menu state */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white shadow-lg pt-2 pb-3 px-4 space-y-1 border-t border-gray-200">
+            {navItems.map((item) => (
+              <Link 
+                key={item.path}
+                href={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`
+                  flex items-center px-3 py-2 rounded-md text-base font-medium ${
+                    item.type === 'cta' 
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : location === item.path
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'text-gray-700 hover:bg-gray-100'
+                  }
+                `}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            ))}
+          </div>
         )}
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 }
