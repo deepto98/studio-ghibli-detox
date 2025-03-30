@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  :root {
+    --primary: 210 100% 50%; /* Vibrant blue */
+    --primary-foreground: 0 0% 98%;
+    --clinic-blue: 210 100% 50%;
+    --clinic-blue-dark: 210 100% 40%;
+  }
+}
+
+@layer components {
+  .ai-card {
+    @apply bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-xl;
+  }
+  
+  .ai-gradient-bg {
+    @apply bg-gradient-to-br from-blue-500 to-blue-600;
+  }
+  
+  .ai-button-primary {
+    @apply px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm;
+  }
+  
+  .ai-button-secondary {
+    @apply px-4 py-2 bg-white text-blue-600 font-medium rounded-md border border-blue-200 hover:bg-blue-50 transition-colors duration-200 shadow-sm;
+  }
+}
