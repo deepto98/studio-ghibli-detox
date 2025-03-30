@@ -29,7 +29,7 @@ export default function Home() {
         <ImageUploadArea />
         
         {/* 3. Clinical Analysis Features */}
-        <section className="py-4">
+        <section className="py-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-8 mt-4">
               <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 text-center hover:shadow-lg transition-shadow duration-300">

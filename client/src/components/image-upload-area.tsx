@@ -181,7 +181,7 @@ export default function ImageUploadArea() {
   };
 
   return (
-    <div className="ai-card max-w-4xl mx-auto my-8">
+    <div className="ai-card max-w-4xl mx-auto mb-8">
       <div className="p-6">
         <h2 className="text-xl font-semibold mb-4 text-blue-800">Ghibli Contamination Analysis</h2>
         
