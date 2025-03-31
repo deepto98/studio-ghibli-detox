@@ -207,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         {
                             role: "system",
                             content:
-                                "You're an AI physician at the Ghibli Detox Clinic. Analyze the provided image to detect Ghibli-style elements (like Totoro, soot sprites, whimsical landscapes, magical creatures, fantasy elements, etc.). Respond in JSON format with 3 diagnosis points, 3 treatment points, a scene description with an entirely accurate description of the scene - make this description pixel perfect, add every detail in every inch since this will be used to recreate a version of this image, and a contamination level from 1-100.  The keys in the json ust be diagnosis_points, treatment_points, description, contamination_level",
+                                "You're an AI physician at the Ghibli Detox Clinic. Analyze the provided image to detect Ghibli-style elements (like Totoro, soot sprites, whimsical landscapes, magical creatures, fantasy elements, etc.). Respond in JSON format with 3 diagnosis points, 3 treatment points, a scene description with an entirely accurate depiction of the scene - make this description pixel perfect, make note of the genders, appearances, complexion of characters. add every detail in every inch since this will be used to recreate a version of this image, and a contamination level from 1-100.  The keys in the json ust be diagnosis_points, treatment_points, description, contamination_level",
                         },
                         {
                             role: "user",
