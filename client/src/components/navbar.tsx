@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Pill, Menu, X, Images, BookOpen, Heart, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Navbar() {
   const [location] = useLocation();

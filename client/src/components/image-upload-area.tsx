@@ -2,24 +2,10 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import {
-  CloudUpload,
-  Download,
-  RefreshCw,
-  Link2,
-  Copy,
-  Twitter,
-  Share,
-} from "lucide-react";
+import { CloudUpload, Download, RefreshCw, Copy, Twitter } from "lucide-react";
 import { ImageAnalysisResponse } from "@shared/schema";
 import DiagnosisReport from "./diagnosis-report";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 type UploadState = "initial" | "uploading" | "analyzing" | "results";
 

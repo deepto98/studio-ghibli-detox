@@ -5,17 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import DiagnosisReport from "@/components/diagnosis-report";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ClipboardCopy, Share2, Twitter, Smartphone } from "lucide-react";
-import { Image, ImageAnalysisResponse } from "@shared/schema";
+import { CardFooter } from "@/components/ui/card";
+import { ClipboardCopy, Share2, Twitter } from "lucide-react";
+import { ImageAnalysisResponse } from "@shared/schema";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function DeGhibResult() {

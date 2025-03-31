@@ -1,4 +1,4 @@
-import { Bug, Pill, FileText, Stethoscope, ClipboardCheck } from "lucide-react";
+import { Bug, Pill, Stethoscope, ClipboardCheck } from "lucide-react";
 
 interface DiagnosisReportProps {
   diagnosisPoints: string[] | null;
