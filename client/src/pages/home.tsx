@@ -32,7 +32,7 @@ export default function Home() {
                     <span className="font-bold text-lg mr-1">
                       {statsData.count.toLocaleString()}
                     </span>
-                    <span className="ml-1">Patients Treated</span>
+                    <span className="ml-1">Whimsies Treated</span>
                   </div>
                 )}
               </div>

@@ -50,7 +50,7 @@ export default function Footer() {
 
         <div className="border-t border-gray-200 mt-8 pt-6 flex flex-col sm:flex-col justify-between items-center">
           <p className="text-sm text-gray-500 mb-2 sm:mb-0">
-            © 2025 Ghibli Detox Clinic 
+            © 2025 Studio Ghibli Detox 
           </p>
 
           <div className="flex items-center pt-4 space-x-3">
