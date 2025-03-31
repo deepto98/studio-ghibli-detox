@@ -2,7 +2,7 @@ import HowItWorksSection from "@/components/how-it-works-section";
 
 export default function HowItWorks() {
   return (
-    <div className="bg-gray-50 text-clinic-text">
+    <div className=" text-clinic-text">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center my-8 md:my-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
