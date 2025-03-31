@@ -18,16 +18,16 @@ export default function HowItWorks() {
 
         <div className="max-w-4xl mx-auto my-12 bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
           <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">
+            <h2 className="text-xl font-semibold mb-4 text-center">
               The Science Behind Ghibli Detoxification
             </h2>
-            <p className="mb-4">
+            <p className="mb-4 text-center">
               Our clinical process involves several sophisticated steps to
               completely remove all traces of whimsy and fantasy from your
               contaminated images:
             </p>
 
-            <div className="space-y-4 mt-6">
+            <div className="space-y-4 mt-6 text-center">
               <div className="bg-clinic-blue p-4 rounded-lg">
                 <h3 className="font-semibold">1. Deep Whimsy Analysis</h3>
                 <p className="text-sm">

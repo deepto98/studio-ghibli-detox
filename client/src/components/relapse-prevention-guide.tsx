@@ -29,9 +29,9 @@ const preventionTips = [
 
 export default function RelapsePrevention() {
   return (
-    <section className="max-w-4xl mx-auto my-12">
+    <section className="max-w-4xl mx-auto my-12 ">
       <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-        <div className="bg-clinic-blue p-4">
+        <div className="bg-clinic-blue p-4 text-center">
           <h2 className="text-xl font-semibold">Relapse Prevention Guide</h2>
           <p className="text-sm text-gray-600">Follow these guidelines to prevent Ghibli recontamination</p>
         </div>

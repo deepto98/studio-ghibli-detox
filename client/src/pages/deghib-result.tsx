@@ -90,9 +90,9 @@ export default function DeGhibResult() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 ">
           <div>
-            <h1 className="text-3xl font-bold">DeGhibli Treatment Results</h1>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">DeGhibli Treatment Results</h1>
             <p className="text-muted-foreground">Patient ID: #{data.id}</p>
           </div>
           <Button onClick={copyLinkToClipboard} variant="outline" className="flex gap-2">

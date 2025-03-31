@@ -17,7 +17,7 @@ export default function RelapsePage() {
         <RelapsePrevention />
 
         <div className="max-w-4xl mx-auto my-12 bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-          <div className="p-6">
+          <div className="p-6 text-center">
             <h2 className="text-xl font-semibold mb-6">
               Additional Prevention Resources
             </h2>
