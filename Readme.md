@@ -2,13 +2,13 @@
 
 **Welcome to March 2025, where your social feeds are drowning in AI-generated Ghiblified images.**
 
-You've seen them. We've *all* seen them. That friend who suddenly decided their Instagram profile picture should look like they're about to be spirited away. The startup pitch deck where the founder has inexplicably become a Ghibli protagonist wandering through a mystical forest.
+You've seen them. We've *all* seen them. That friend who suddenly decided their Instagram profile picture should look like they're about to be spirited away.  
 
 The Ghibli-fication of the internet has reached epidemic proportions. And I have the answer.
 
 ## 💊 Introducing Studio Ghibli Detox 💊
 
-The Ghibli Detox Clinic is my tongue-in-cheek answer to the sea of Ghibli-style AI images we're all swimming in. Tired of that Ghibli style image? Feed it to us and we'll remove any traces of magical creatures and sentient dust, and dish out a realistic version of the image.  Our AI-powered service analyzes and completely remove all traces of whimsy and fantasy from your contaminated images. Head over [here](http://localhost:5000/how-it-works) to know how it works. Get inspired by transformations others have undergone [here](http://localhost:5000/gallery)
+The Ghibli Detox Clinic is my tongue-in-cheek answer to the sea of Ghibli-style AI images we're all swimming in. Tired of that Ghibli style image? Feed it to us and we'll remove any traces of magical creatures and sentient dust, and dish out a realistic version of the image.  Our AI-powered service analyzes and completely remove all traces of whimsy and fantasy from your contaminated images. Head over [here](https://studio-ghibli-detox.onrender.com/how-it-works) to know how it works. Get inspired by transformations others have undergone [here](https://studio-ghibli-detox.onrender.com/gallery).
 
 ### What We Offer:
 
