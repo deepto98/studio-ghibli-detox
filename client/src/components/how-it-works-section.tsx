@@ -3,7 +3,8 @@ import { Upload, Beaker, WandSparkles } from "lucide-react";
 export default function HowItWorksSection() {
   return (
     <section className="max-w-4xl mx-auto my-12">
-      <h2 className="text-2xl font-bold mb-6 text-center">How Our Treatment Works</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">
+        How Our Treatment Works</h2>
       
       <div className="grid md:grid-cols-3 gap-8">
         <div className="text-center">

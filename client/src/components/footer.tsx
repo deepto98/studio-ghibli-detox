@@ -6,7 +6,7 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold mb-3">Ghibli Detox Clinic</h3>
             <p className="text-sm text-gray-600">
-              Restoring reality to whimsy-infected imagery since 2023.
+              Restoring reality to whimsy-infected imagery since 2025.
             </p>
           </div>
           
@@ -30,7 +30,7 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-200 mt-8 pt-6 text-center text-sm text-gray-500">
-          <p>© 2023 Ghibli Detox Clinic. This is a parody service. We actually love Studio Ghibli.</p>
+          <p>© 2025 Ghibli Detox Clinic. This is a parody service. We actually love Studio Ghibli.</p>
         </div>
       </div>
     </footer>
