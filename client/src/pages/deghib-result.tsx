@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCopy } from "lucide-react";
+import { ClipboardCopy, Share2, Twitter, Smartphone } from "lucide-react";
 import { Image, ImageAnalysisResponse } from "@shared/schema";
 
 export default function DeGhibResult() {
@@ -104,14 +104,15 @@ export default function DeGhibResult() {
             <Button
               onClick={copyLinkToClipboard}
               variant="outline"
-              className="flex gap-2"
+              className="flex items-center gap-2 hover:bg-blue-50 transition-colors"
             >
               <ClipboardCopy size={16} />
-              Copy Link
+              <span className="hidden sm:inline">Copy Link</span>
             </Button>
+
             <Button
               variant="outline"
-              className="flex gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+              className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 transition-colors"
               onClick={() => {
                 const url = window.location.href;
                 window.open(
@@ -122,11 +123,13 @@ export default function DeGhibResult() {
                 );
               }}
             >
-              <span>WhatsApp</span>
+              <Smartphone size={16} />
+              <span className="hidden sm:inline">WhatsApp</span>
             </Button>
+
             <Button
               variant="outline"
-              className="flex gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+              className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300 transition-colors"
               onClick={() => {
                 const url = window.location.href;
                 window.open(
@@ -137,8 +140,35 @@ export default function DeGhibResult() {
                 );
               }}
             >
-              <span>Twitter</span>
+              <Twitter size={16} />
+              <span className="hidden sm:inline">Twitter</span>
             </Button>
+
+            {/* Native share button if supported */}
+            {typeof navigator.share !== "undefined" && (
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-300 transition-colors"
+                onClick={() => {
+                  const url = window.location.href;
+                  const title = "My DeGhibli Treatment Results";
+                  const text = "Check out my detoxified Ghibli image:";
+
+                  navigator
+                    .share({
+                      title,
+                      text,
+                      url,
+                    })
+                    .catch((err) => {
+                      console.error("Error sharing:", err);
+                    });
+                }}
+              >
+                <Share2 size={16} />
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -194,15 +224,12 @@ export default function DeGhibResult() {
           diagnosisPoints={data.diagnosisPoints}
           treatmentPoints={data.treatmentPoints}
         />
-
-        <CardFooter className="flex justify-center mt-6">
-          <Button
-            onClick={copyLinkToClipboard}
-            variant="outline"
-            className="flex gap-2"
-          >
-            <ClipboardCopy size={16} />
-            Copy Link
+        <CardFooter className="flex justify-center gap-4 mt-6">
+          <Button asChild variant="secondary" className="shadow-sm">
+            <Link href="/gallery">View Gallery</Link>
+          </Button>
+          <Button asChild variant="primary" className="shadow-sm">
+            <Link href="/">DeGhib Another Image</Link>
           </Button>
         </CardFooter>
       </div>

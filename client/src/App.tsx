@@ -10,6 +10,7 @@ import HowItWorks from "@/pages/how-it-works";
 import RelapsePrevention from "@/pages/relapse-prevention";
 import DeGhibResult from "@/pages/deghib-result";
 import Gallery from "@/pages/gallery";
+import { GhibliSparkles } from "./components/ghibli-sparkles";
 
 function Router() {
   return (
@@ -28,6 +29,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex flex-col min-h-screen">
+        {/* Ghibli-style sparkles floating in the background */}
+        <GhibliSparkles />
         <Navbar />
         <main className="flex-grow">
           <Router />

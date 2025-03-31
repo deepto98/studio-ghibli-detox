@@ -20,7 +20,7 @@ export default function Home() {
     <div className="bg-gray-50 text-clinic-text">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 1. Medical-Grade Ghibli Detoxification */}
-        <section className="py-8 md:py-12">
+        <section className="py-1 md:py-1">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-4">
               <div className="flex items-center justify-center gap-4 mb-4">
@@ -52,7 +52,7 @@ export default function Home() {
         <ImageUploadArea />
 
         {/* 3. Clinical Analysis Features */}
-        <section className="py-4">
+        <section className="py-2">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-8 mt-4">
               <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100 text-center hover:shadow-lg transition-shadow duration-300">
