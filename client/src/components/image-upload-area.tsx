@@ -231,7 +231,10 @@ export default function ImageUploadArea() {
                 <input {...getInputProps()} />
               </div>
               <p className="text-xs text-gray-500">
-                Supports JPG, PNG, and WEBP up to 10MB
+                Supports JPG, JPEG, PNG, and WEBP up to 10MB
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Images you upload will be visible in the public gallery
               </p>
             </div>
           </div>

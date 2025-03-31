@@ -9,6 +9,7 @@ import OpenAI from "openai";
 import { ImageAnalysisResponse, InsertImage, Image } from "@shared/schema";
 import { r2Storage } from "./r2-storage";
 import axios from "axios";
+import rateLimit from "express-rate-limit";
 
 // Define a custom Request interface with file from multer
 interface MulterRequest extends Request {
@@ -54,6 +55,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Log the OpenAI API key status (not the actual key) for debugging
     console.log("OpenAI API Key status:", process.env.OPENAI_API_KEY ? "Key is set" : "Key is missing");
     console.log("R2 Storage status:", process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ? "R2 credentials set" : "R2 credentials missing");
+
+    // Setup rate limiting for the analyze endpoint
+    const rateLimitRequests = process.env.MAX_DEGHIBS_PER_DAY ? parseInt(process.env.MAX_DEGHIBS_PER_DAY) : 3;
+    const analyzeRateLimiter = rateLimit({
+        windowMs: 24 * 60 * 60 * 1000, // 24 hours
+        limit: rateLimitRequests, // limit each IP to X requests per day
+        standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+        legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+        message: {
+            message: `You've reached your daily limit of ${rateLimitRequests} deghibs. Please try again tomorrow.`
+        }
+    });
+
+    // Endpoint to get total count of deghibs
+    app.get("/api/stats/count", async (req, res) => {
+        try {
+            const images = await database.getAllImages();
+            res.status(200).json({ count: images.length });
+        } catch (error: any) {
+            console.error("Error fetching deghib count:", error);
+            res.status(500).json({
+                message: "Error fetching deghib count",
+                error: error.message || "Unknown error occurred",
+            });
+        }
+    });
 
     // Helper function to get signed URLs for image keys
     async function getSignedUrls(image: Image) {
@@ -151,6 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Endpoint to analyze image and generate detoxified version
     app.post(
         "/api/analyze",
+        analyzeRateLimiter,
         upload.single("image"),
         async (req: MulterRequest, res: Response) => {
             try {
