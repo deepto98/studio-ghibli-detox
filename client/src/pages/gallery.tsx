@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -12,16 +12,62 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Image } from "@shared/schema";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Gallery() {
   // State to track hover for each gallery item
   const [hoveredItem, setHoveredItem] = useState<number | null>(null);
   const [autoTransitionItems, setAutoTransitionItems] = useState<number[]>([]);
+  const isMobile = useIsMobile();
+
+  // Pagination state with animation
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const itemsPerPage = isMobile ? 1 : 3;
 
   // Fetch all images for the gallery
   const { data, isLoading, error } = useQuery<Image[]>({
     queryKey: ["/api/images"],
   });
+
+  // Calculate pagination values
+  const totalItems = data?.length || 0;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Get current page items
+  const getCurrentPageItems = useCallback(() => {
+    if (!data) return [];
+    const startIndex = currentPage * itemsPerPage;
+    return data.slice(startIndex, startIndex + itemsPerPage);
+  }, [data, currentPage, itemsPerPage]);
+
+  const currentItems = getCurrentPageItems();
+
+  // Navigation functions with smooth transitions
+  const goToNextPage = () => {
+    if (currentPage < totalPages - 1 && !isTransitioning) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentPage((prev) => prev + 1);
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 300);
+      }, 150);
+    }
+  };
+
+  const goToPrevPage = () => {
+    if (currentPage > 0 && !isTransitioning) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentPage((prev) => prev - 1);
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, 300);
+      }, 150);
+    }
+  };
 
   // Setup auto-transition effect
   useEffect(() => {
@@ -43,6 +89,11 @@ export default function Gallery() {
       return () => clearInterval(interval);
     }
   }, [data, hoveredItem]);
+
+  // Reset to first page when items per page changes (mobile/desktop switch)
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [isMobile]);
 
   if (isLoading) {
     return (
@@ -102,75 +153,121 @@ export default function Gallery() {
             Clinic
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {data &&
-              data.map((item: Image) => (
-                <Card
-                  key={item.id}
-                  className="overflow-hidden group border shadow-sm"
-                >
-                  <CardHeader className="pb-2 bg-card">
-                    <CardTitle className="text-lg">Case #{item.id}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0 aspect-square relative bg-white">
-                    <Badge
-                      variant="destructive"
-                      className="absolute top-2 right-2 z-10"
-                    >
-                      {item.contaminationLevel}% Contaminated
-                    </Badge>
+          {/* Gallery Grid - Responsive layout with animation */}
+          <div
+            className={`grid gap-6 ${
+              isMobile
+                ? "grid-cols-1"
+                : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+            } relative min-h-[400px] transition-opacity duration-300 ${
+              isTransitioning ? "opacity-50" : "opacity-100"
+            }`}
+          >
+            {currentItems.map((item: Image) => (
+              <Card
+                key={item.id}
+                className="overflow-hidden group border shadow-sm transition-all duration-300 hover:shadow-md transform hover:scale-[1.01]"
+              >
+                <CardHeader className="pb-2 bg-card">
+                  <CardTitle className="text-lg">Case #{item.id}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 aspect-square relative bg-white">
+                  <Badge
+                    variant="destructive"
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    {item.contaminationLevel}% Contaminated
+                  </Badge>
 
-                    {/* Show original image on hover, otherwise show detoxified */}
-                    <div
-                      className="relative w-full h-full"
-                      onMouseEnter={() => setHoveredItem(item.id)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                    >
-                      {/* Detoxified Image */}
-                      <img
-                        src={item.detoxifiedImageUrl || undefined}
-                        alt="Detoxified image"
-                        className={`object-contain w-full h-full p-2 transition-opacity duration-500 ${
-                          hoveredItem === item.id ||
-                          autoTransitionItems.includes(item.id)
-                            ? "opacity-0"
-                            : "opacity-100"
-                        }`}
-                      />
-
-                      {/* Original Ghibli Image */}
-                      <img
-                        src={item.originalImageUrl || undefined}
-                        alt="Original Ghibli image"
-                        className={`object-contain w-full h-full p-2 absolute inset-0 transition-opacity duration-500 ${
-                          hoveredItem === item.id ||
-                          autoTransitionItems.includes(item.id)
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
-                      />
-                    </div>
-
-                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white font-medium px-3 py-1 rounded">
-                        {hoveredItem === item.id ||
+                  {/* Show original image on hover, otherwise show detoxified */}
+                  <div
+                    className="relative w-full h-full"
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    onTouchStart={() => {
+                      // Toggle on touch for mobile
+                      if (hoveredItem === item.id) {
+                        setHoveredItem(null);
+                      } else {
+                        setHoveredItem(item.id);
+                      }
+                    }}
+                  >
+                    {/* Detoxified Image */}
+                    <img
+                      src={item.detoxifiedImageUrl || undefined}
+                      alt="Detoxified image"
+                      className={`object-contain w-full h-full p-2 transition-opacity duration-500 ${
+                        hoveredItem === item.id ||
                         autoTransitionItems.includes(item.id)
-                          ? "Original"
-                          : "Detoxified"}
-                      </span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-center p-4 bg-card">
-                    <Button asChild variant="outline">
-                      <Link href={`/deghib/${item.id}`}>View Details</Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-          </div>
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
+                    />
 
-          <div className="text-center mt-10">
-            <Button asChild>
+                    {/* Original Ghibli Image */}
+                    <img
+                      src={item.originalImageUrl || undefined}
+                      alt="Original Ghibli image"
+                      className={`object-contain w-full h-full p-2 absolute inset-0 transition-opacity duration-500 ${
+                        hoveredItem === item.id ||
+                        autoTransitionItems.includes(item.id)
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <span className="text-white font-medium px-3 py-1 rounded">
+                      {hoveredItem === item.id ||
+                      autoTransitionItems.includes(item.id)
+                        ? "Original"
+                        : "Detoxified"}
+                    </span>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-center p-4 bg-card">
+                  <Button asChild variant="outline">
+                    <Link href={`/deghib/${item.id}`}>View Details</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+          {/* Navigation Controls - Bottom */}
+          <div className="flex justify-between items-center mt-8 mb-6">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPrevPage}
+              disabled={currentPage === 0}
+              className="transition-all duration-300 hover:scale-105"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              <span className="sr-only">Previous page</span>
+            </Button>
+
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage + 1} of {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNextPage}
+              disabled={currentPage >= totalPages - 1}
+              className="transition-all duration-300 hover:scale-105"
+            >
+              <ChevronRight className="h-5 w-5" />
+              <span className="sr-only">Next page</span>
+            </Button>
+          </div>
+          <div className="text-center mt-8">
+            <Button
+              asChild
+              className="shadow-md hover:shadow-lg transition-all duration-300"
+            >
               <Link href="/">Transform Your Own Image</Link>
             </Button>
           </div>
