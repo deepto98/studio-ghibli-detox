@@ -65,17 +65,19 @@ export function serveStatic(app: Express) {
     const staticDir = path.resolve(__dirname, "../dist/public");
     console.log(`Serving static files from: ${staticDir}`);
 
-    app.use(express.static(staticDir, {
-        setHeaders: (res, path) => {
-            // Ensure correct MIME types
-            if (path.endsWith('.js')) {
-                res.set('Content-Type', 'application/javascript; charset=utf-8');
-            }
-            if (path.endsWith('.css')) {
-                res.set('Content-Type', 'text/css; charset=utf-8');
-            }
+    // Middleware to handle JavaScript MIME types
+    app.use((req, res, next) => {
+        const url = req.url;
+        if (url.endsWith('.js') || url.includes('.js?')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
-    }));
+        if (url.endsWith('.css') || url.includes('.css?')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        }
+        next();
+    });
+    // Static file serving
+    app.use(express.static(staticDir));
     // For SPA client-side routing, serve index.html for any routes not found
     app.get("*", (_req, res) => {
         res.sendFile(path.resolve(staticDir, "index.html"));
