@@ -61,18 +61,23 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-    // This is only used in production
-    const staticDir = process.env.NODE_ENV === 'production'
-        ? path.resolve(__dirname, "../client")
-        : path.resolve(__dirname, "public");
+    // In production, serve from the dist/public directory where Vite outputs files
+    const staticDir = path.resolve(__dirname, "../dist/public");
+    console.log(`Serving static files from: ${staticDir}`);
 
-    app.use(express.static(staticDir));
-
-    // Serve index.html for all routes to let client-side routing handle them
+    app.use(express.static(staticDir, {
+        setHeaders: (res, path) => {
+            // Ensure correct MIME types
+            if (path.endsWith('.js')) {
+                res.set('Content-Type', 'application/javascript; charset=utf-8');
+            }
+            if (path.endsWith('.css')) {
+                res.set('Content-Type', 'text/css; charset=utf-8');
+            }
+        }
+    }));
+    // For SPA client-side routing, serve index.html for any routes not found
     app.get("*", (_req, res) => {
-        const indexPath = process.env.NODE_ENV === 'production'
-            ? path.resolve(__dirname, "../client/index.html")
-            : path.resolve(__dirname, "public", "index.html");
-        res.sendFile(indexPath);
+        res.sendFile(path.resolve(staticDir, "index.html"));
     });
 }
