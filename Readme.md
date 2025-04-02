@@ -20,7 +20,7 @@ The Ghibli Detox Clinic is my tongue-in-cheek answer to the sea of Ghibli-style 
 ## Tech Stack
 
 - **Frontend**: React with TypeScript, leveraging the power of React Hooks and functional components
-- **Styling**: Tailwind CSS with custom animations and a responsive design system, enhanced with shadcn/ui components
+- **Styling**: Tailwind CSS with custom animations and a responsive design system, enhanced with RadixUI components
 - **State Management**: React Query for server state management with optimistic updates
 - **Backend**: Express.js server handling API requests and image processing
 - **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
