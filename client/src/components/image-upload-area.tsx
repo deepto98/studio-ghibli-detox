@@ -20,6 +20,12 @@ import {
 } from "@shared/schema";
 import DiagnosisReport from "./diagnosis-report";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type UploadState =
   | "initial"
@@ -39,7 +45,8 @@ export default function ImageUploadArea() {
     useState<PartialAnalysisResponse | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysisResponse | null>(null);
   const [progressPercent, setProgressPercent] = useState(25); // Start at 25% (first stage)
-  const [detoxImageLoaded, setDetoxImageLoaded] = useState(false); // Track when detoxified image is loaded
+  const [detoxImageLoaded, setDetoxImageLoaded] = useState(false);
+  const [loadingComplete, setLoadingComplete] = useState(false); // Track when detoxified image is loaded
   const [creationTime, setCreationTime] = useState<Date | null>(null); // Track when the image was created
   const { toast } = useToast();
 
@@ -125,7 +132,7 @@ export default function ImageUploadArea() {
       setUploadState("partial_results");
       setProgressPercent(50); // First phase complete
 
-      // Automatically proceed to generate the detoxified image
+      // Automatically proceed to generate the detoxified image in the background
       if (data) {
         generateDetoxifiedImage.mutate({
           originalImageKey: data.originalImageKey || "",
@@ -152,7 +159,8 @@ export default function ImageUploadArea() {
       return response.json() as Promise<ImageCreationResponse>;
     },
     onMutate: () => {
-      setUploadState("generating");
+      // Keep the partial_results state visible while generating the detoxified image
+      // We're no longer setting uploadState to "generating" to keep showing the comparison view
       setProcessingMessage("Creating detoxified image...");
 
       // Simulate state changes for a better UX
@@ -379,98 +387,22 @@ export default function ImageUploadArea() {
     return timeDiffInMinutes <= 2;
   };
 
-  const renderPartialResults = () => {
-    if (!partialAnalysis || !originalImage) return null;
-
-    return (
-      <div>
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Original Image with diagnosis */}
-          <div className="flex-1 ai-card">
-            <div className="bg-gradient-to-r from-rose-500 to-pink-600 px-3 py-2 text-center text-sm font-medium text-white">
-              Contaminated
-            </div>
-            <div className="p-4">
-              <img
-                src={originalImage}
-                alt="Original Ghibli-contaminated image"
-                className="w-full h-64 object-cover rounded-lg shadow-sm"
-                loading="lazy"
-                decoding="async"
-              />
-            </div>
-          </div>
-
-          {/* Right side - treatment in progress */}
-          <div className="flex-1 ai-card">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 text-center text-sm font-medium text-white">
-              Treatment in Progress
-            </div>
-            <div className="p-8 flex flex-col items-center justify-center h-64">
-              <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin mb-4"></div>
-              <p className="text-sm font-medium text-gray-700">
-                {processingMessage}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">
-                Generating realistic image...
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Show partial diagnosis */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <h3 className="text-lg font-medium mb-2 text-blue-700">
-            Clinical Diagnosis
-          </h3>
-          <ul className="list-disc pl-5 space-y-1">
-            {partialAnalysis.diagnosisPoints.map((point, index) => (
-              <li key={index} className="text-sm text-gray-700">
-                {point}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Contamination Level Meter */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-          <h3 className="text-sm font-medium mb-3 text-gray-700">
-            Ghibli Contamination Level
-          </h3>
-          <div className="h-5 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
-            <div
-              className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${partialAnalysis.contaminationLevel}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-xs mt-2 text-gray-600 font-medium">
-            <span>Mild</span>
-            <span>Moderate</span>
-            <span>Severe</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="ai-card max-w-4xl mx-auto my-8">
       <div className="p-6">
-      <h2 className="text-xl font-semibold mb-4 text-blue-800 text-center">
-      Ghibli Contamination Analysis
+        <h2 className="text-xl font-semibold mb-4 text-blue-800 text-center">
+          Ghibli Contamination Analysis
         </h2>
 
         {uploadState === "initial" && (
           <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300
-            ${
-              isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-200"
-            }`}
-          {...getRootProps()}
-        >
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300
+            ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-200"}`}
+            {...getRootProps()}
+          >
             <div className="space-y-4">
-            <CloudUpload className="h-16 w-16 mx-auto text-blue-500" />
-            <h3 className="text-lg font-medium text-gray-800">
+              <CloudUpload className="h-16 w-16 mx-auto text-blue-500" />
+              <h3 className="text-lg font-medium text-gray-800">
                 Upload an image for detoxification
               </h3>
               <p className="text-sm text-gray-600">
@@ -506,7 +438,8 @@ export default function ImageUploadArea() {
           </div>
         )}
 
-        {(uploadState === "uploading" || uploadState === "generating") && (
+        {/* Only show the progress spinner during initial upload/analysis phase */}
+        {uploadState === "uploading" && (
           <div className="border-2 border-blue-100 rounded-xl p-8 text-center bg-blue-50">
             <div className="space-y-4">
               <div className="relative w-20 h-20 mx-auto">
@@ -546,7 +479,72 @@ export default function ImageUploadArea() {
         )}
 
         {/* Show partial results while generating the detoxified image */}
-        {uploadState === "partial_results" && renderPartialResults()}
+        {uploadState === "partial_results" &&
+          partialAnalysis &&
+          originalImage && (
+            <div>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Original Image with diagnosis */}
+                <div className="flex-1 ai-card">
+                  <div className="bg-gradient-to-r from-rose-500 to-pink-600 px-3 py-2 text-center text-sm font-medium text-white">
+                    Contaminated
+                  </div>
+                  <div className="p-4">
+                    <img
+                      src={originalImage}
+                      alt="Original Ghibli-contaminated image"
+                      className="w-full h-64 object-cover rounded-lg shadow-sm"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                </div>
+
+                {/* Right side - treatment in progress */}
+                <div className="flex-1 ai-card">
+                  <div className="bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-2 text-center text-sm font-medium text-white">
+                    Treatment in Progress
+                  </div>
+                  <div className="p-8 flex flex-col items-center justify-center h-64">
+                    <div className="w-12 h-12 border-4 border-t-sky-500 border-sky-200 rounded-full animate-spin mb-4"></div>
+                    <p className="text-sm font-medium text-gray-700">
+                      {processingMessage}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Generating realistic image...
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Show diagnosis report with treatment loading state */}
+              <DiagnosisReport
+                diagnosisPoints={partialAnalysis.diagnosisPoints}
+                treatmentPoints={null}
+                isLoading={true}
+              />
+
+              {/* Contamination Level Meter */}
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <h3 className="text-sm font-medium mb-3 text-gray-700">
+                  Ghibli Contamination Level
+                </h3>
+                <div className="h-5 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full transition-all duration-1000 ease-out"
+                    style={{ width: `${partialAnalysis.contaminationLevel}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs mt-2 text-gray-600 font-medium">
+                  <span>Mild</span>
+                  <span>Moderate</span>
+                  <span>Severe</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+
 
         {/* Final results with both images and full diagnosis */}
         {uploadState === "results" && analysis && originalImage && (
@@ -570,8 +568,8 @@ export default function ImageUploadArea() {
 
               {/* After Image */}
               <div className="flex-1 ai-card">
-              <div className="bg-gradient-to-r from-green-500 to-teal-600 px-3 py-2 text-center text-sm font-medium text-white">
-              Detoxified
+                <div className="bg-gradient-to-r from-green-500 to-teal-600 px-3 py-2 text-center text-sm font-medium text-white">
+                  Detoxified
                 </div>
                 <div className="p-4 relative">
                   {/* Loading overlay */}
@@ -581,8 +579,8 @@ export default function ImageUploadArea() {
                   >
                     <div className="flex flex-col items-center">
                     <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
-                    <p className="mt-2 text-sm font-medium text-blue-700">
-                        Loading detoxified image...
+                      <p className="mt-2 text-sm font-medium text-blue-700">
+                      Loading detoxified image...
                       </p>
                     </div>
                   </div>
@@ -592,7 +590,11 @@ export default function ImageUploadArea() {
                     className="w-full h-64 object-cover rounded-lg shadow-sm"
                     loading="lazy"
                     decoding="async"
-                    onLoad={() => setDetoxImageLoaded(true)}
+                    onLoad={() => {
+                      setDetoxImageLoaded(true);
+                      setProgressPercent(100); // Set to 100% only when image is fully loaded
+                      setLoadingComplete(true);
+                    }}
                   />
                 </div>
               </div>
