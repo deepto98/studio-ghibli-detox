@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid gap-8 md:grid-cols-3">
           <div>
-            <h3 className="font-semibold mb-3">Ghibli Detox Clinic</h3>
+            <h3 className="font-semibold mb-3">Studio Ghibli Detox</h3>
             <p className="text-sm text-gray-600">
               Restoring reality to whimsy-infected imagery since 2025.
             </p>

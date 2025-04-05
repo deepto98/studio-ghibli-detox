@@ -98,7 +98,7 @@ export default function DeGhibResult() {
             </h1>
             <p className="text-muted-foreground">Patient ID: #{data.id}</p>
           </div>
-          <div className="flex gap-2">
+          <div className={`${isMobile ? 'flex flex-wrap justify-end gap-1 mt-2' : 'flex gap-2'}`}>
             <Button
               onClick={copyLinkToClipboard}
               variant="outline"
