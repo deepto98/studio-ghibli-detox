@@ -234,7 +234,7 @@ export default function DeGhibResult() {
             variant="default"
             className="shadow-sm bg-blue-600 hover:bg-blue-700"
           >
-            <Link href="/">DeGhib Another Image</Link>
+            <Link href="/">De-Ghib Another Image</Link>
           </Button>
         </CardFooter>
       </div>
