@@ -57,16 +57,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("OpenAI API Key status:", process.env.OPENAI_API_KEY ? "Key is set" : "Key is missing");
     console.log("R2 Storage status:", process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ? "R2 credentials set" : "R2 credentials missing");
 
-    // Setup rate limiting for the analyze endpoint
+    // Setup rate limiting for the analyze endpoint - based on the client IP
     const rateLimitRequests = process.env.MAX_DEGHIBS_PER_DAY ? parseInt(process.env.MAX_DEGHIBS_PER_DAY) : 3;
     const analyzeRateLimiter = rateLimit({
         windowMs: 24 * 60 * 60 * 1000, // 24 hours
-        limit: rateLimitRequests, // limit each IP to X requests per day
+        limit: rateLimitRequests, // limit each IP to X requests per day defined in .env
         standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
         legacyHeaders: false, // Disable the `X-RateLimit-*` headers
         message: {
             message: `You've reached your daily limit of ${rateLimitRequests} deghibs. Please try again tomorrow.`
-        }
+        },
+        keyGenerator: (req) => {
+            // Use the client's IP address as the rate limit key
+            const clientIP = req.ip ||
+                req.headers['x-forwarded-for'] ||
+                req.socket.remoteAddress ||
+                'unknown';
+            console.log(`Rate limit check for IP: ${clientIP}`);
+            return typeof clientIP === 'string' ? clientIP : Array.isArray(clientIP) ? clientIP[0] : 'unknown';
+        },
+        skipSuccessfulRequests: false, // Count all requests toward the limit
+        skip: (req, res) => false // Don't skip any requests
     });
 
     // Endpoint to get total count of deghibs
