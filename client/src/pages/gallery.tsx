@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Image } from "@shared/schema";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Image } from "@shared/schema";
 
 export default function Gallery() {
   // State to track hover for each gallery item
@@ -26,14 +33,58 @@ export default function Gallery() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const itemsPerPage = isMobile ? 1 : 3;
 
+  // Sorting state
+  type SortOption = "most-contaminated" | "least-contaminated" | "latest";
+  const [sortBy, setSortBy] = useState<SortOption>("most-contaminated");
+
   // Fetch all images for the gallery
-  const { data, isLoading, error } = useQuery<Image[]>({
+  const {
+    data: originalData,
+    isLoading,
+    error,
+  } = useQuery<Image[]>({
     queryKey: ["/api/images"],
   });
+
+  // Apply sorting to the data
+  const data = useMemo(() => {
+    if (!originalData) return [];
+
+    let sortedData = [...originalData];
+
+    switch (sortBy) {
+      case "latest":
+        // Sort by ID in descending order (assuming higher IDs are newer)
+        // If createdAt is available, use that instead
+        sortedData.sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          }
+          return b.id - a.id;
+        });
+        break;
+      case "most-contaminated":
+        sortedData.sort((a, b) => b.contaminationLevel - a.contaminationLevel);
+        break;
+      case "least-contaminated":
+        sortedData.sort((a, b) => a.contaminationLevel - b.contaminationLevel);
+        break;
+    }
+
+    return sortedData;
+  }, [originalData, sortBy]);
 
   // Calculate pagination values
   const totalItems = data?.length || 0;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Reset to first page when sorting changes
+  useEffect(() => {
+    setCurrentPage(0);
+    setIsTransitioning(false);
+  }, [sortBy]);
 
   // Get current page items
   const getCurrentPageItems = useCallback(() => {
@@ -148,10 +199,34 @@ export default function Gallery() {
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
             Ghibli Detox Gallery
           </h1>
-          <p className="text-center text-muted-foreground mb-8">
+          <p className="text-center text-muted-foreground mb-4">
             Browse the before and after transformations from our Ghibli Detox
             Clinic
           </p>
+
+          {/* Sorting filter */}
+          <div className="flex justify-center items-center mb-4">
+            <div className="flex items-center bg-gray-50 rounded-lg p-2">
+              <Filter className="h-4 w-4 mr-2 text-gray-500" />
+              <Select
+                value={sortBy}
+                onValueChange={(value) => setSortBy(value as SortOption)}
+              >
+                <SelectTrigger className="w-[180px] border-none bg-transparent focus:ring-0">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="most-contaminated">
+                    Most Contaminated
+                  </SelectItem>
+                  <SelectItem value="least-contaminated">
+                    Least Contaminated
+                  </SelectItem>
+                  <SelectItem value="latest">Latest Uploads</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Gallery Grid - Responsive layout with animation */}
           <div
@@ -197,7 +272,10 @@ export default function Gallery() {
                     <img
                       src={item.detoxifiedImageUrl || undefined}
                       alt="Detoxified image"
-                      className={`object-contain w-full h-full p-2 transition-opacity duration-500 ${
+                      loading="lazy"
+                      decoding="async"
+                      fetchPriority={item.id <= 3 ? "high" : "low"}
+                      className={`object-contain w-full h-full p-2 transition-opacity duration-700 ${
                         hoveredItem === item.id ||
                         autoTransitionItems.includes(item.id)
                           ? "opacity-0"
@@ -205,11 +283,14 @@ export default function Gallery() {
                       }`}
                     />
 
-                    {/* Original Ghibli Image */}
+                    {/* Original Ghibli Image - Load with lower priority since it's not visible initially */}
                     <img
                       src={item.originalImageUrl || undefined}
                       alt="Original Ghibli image"
-                      className={`object-contain w-full h-full p-2 absolute inset-0 transition-opacity duration-500 ${
+                      loading="lazy"
+                      decoding="async"
+                      fetchPriority="low"
+                      className={`object-contain w-full h-full p-2 absolute inset-0 transition-opacity duration-700 ${
                         hoveredItem === item.id ||
                         autoTransitionItems.includes(item.id)
                           ? "opacity-100"
@@ -236,7 +317,7 @@ export default function Gallery() {
             ))}
           </div>
           {/* Navigation Controls - Bottom */}
-          <div className="flex justify-between items-center mt-8 mb-6">
+          <div className="flex justify-between items-center mt-4 mb-4">
             <Button
               variant="outline"
               size="icon"
@@ -263,7 +344,7 @@ export default function Gallery() {
               <span className="sr-only">Next page</span>
             </Button>
           </div>
-          <div className="text-center mt-8">
+          <div className="text-center mt-0">
             <Button
               asChild
               className="shadow-md hover:shadow-lg transition-all duration-300"
