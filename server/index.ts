@@ -6,9 +6,12 @@ dotenv.config(); // This loads the .env file contents into process.env
 import express, { type Request, type Response, type NextFunction } from "express";
 import { setupVite, serveStatic, log } from "./vite";
 import { registerRoutes } from "./routes";
+import requestIp from 'request-ip';
 
 const app = express();
+
 app.use(express.json());
+app.use(requestIp.mw());
 
 app.use((req, res, next) => {
   const start = Date.now();

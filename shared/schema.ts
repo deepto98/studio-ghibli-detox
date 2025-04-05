@@ -50,7 +50,22 @@ export type User = typeof users.$inferSelect;
 export type Image = typeof images.$inferSelect;
 export type InsertImage = z.infer<typeof insertImageSchema>;
 
-// Analysis Response Type
+// Analysis Response Types
+export type PartialAnalysisResponse = {
+    diagnosisPoints: string[];
+    contaminationLevel: number;
+    originalImageUrl: string;
+    id?: number;
+    description?: string;
+    originalImageKey?: string;
+    promptForDalle?: string;
+};
+
+export type ImageCreationResponse = {
+    treatmentPoints: string[];
+    detoxifiedImageUrl: string;
+    id: number;
+};
 
 export type ImageAnalysisResponse = {
     diagnosisPoints: string[];
@@ -61,4 +76,5 @@ export type ImageAnalysisResponse = {
     id?: number;
     description?: string;
     shareableUrl?: string;
- };
+    createdAt?: string; // Added for time-based deletion
+};

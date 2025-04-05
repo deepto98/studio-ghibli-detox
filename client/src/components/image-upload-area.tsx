@@ -6,15 +6,28 @@ import {
   CloudUpload,
   Download,
   RefreshCw,
+  Link2,
   Copy,
   Twitter,
+  Share,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
-import { ImageAnalysisResponse } from "@shared/schema";
+import {
+  ImageAnalysisResponse,
+  PartialAnalysisResponse,
+  ImageCreationResponse,
+} from "@shared/schema";
 import DiagnosisReport from "./diagnosis-report";
 import { useToast } from "@/hooks/use-toast";
 
-type UploadState = "initial" | "uploading" | "analyzing" | "results";
+type UploadState =
+  | "initial"
+  | "uploading"
+  | "analyzing"
+  | "partial_results"
+  | "generating"
+  | "results";
 
 export default function ImageUploadArea() {
   const [uploadState, setUploadState] = useState<UploadState>("initial");
@@ -22,18 +35,64 @@ export default function ImageUploadArea() {
     "Analyzing Ghibli contamination..."
   );
   const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [partialAnalysis, setPartialAnalysis] =
+    useState<PartialAnalysisResponse | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysisResponse | null>(null);
   const [progressPercent, setProgressPercent] = useState(25); // Start at 25% (first stage)
   const [detoxImageLoaded, setDetoxImageLoaded] = useState(false); // Track when detoxified image is loaded
+  const [creationTime, setCreationTime] = useState<Date | null>(null); // Track when the image was created
   const { toast } = useToast();
 
+  // Helper function to handle API errors
+  const handleApiError = (error: any) => {
+    let errorMessage = "Failed to process image";
+
+    // Extract the error message if available
+    if (
+      error.response &&
+      typeof error.responseBody === "object" &&
+      error.responseBody.message
+    ) {
+      errorMessage = error.responseBody.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    } else {
+      errorMessage = "Unknown error occurred";
+    }
+
+    // Provide more specific messages for common errors
+    if (
+      errorMessage.includes("invalid_image_format") ||
+      errorMessage.includes("Image format error") ||
+      errorMessage.includes("Invalid input image")
+    ) {
+      errorMessage =
+        "Image format error: Please upload a valid JPG, PNG, or WEBP file. The image will be automatically converted to PNG with transparency for processing.";
+    } else if (
+      errorMessage.includes("file too large") ||
+      errorMessage.includes("exceeds the size limit")
+    ) {
+      errorMessage =
+        "Image is too large. Please upload an image smaller than 4MB.";
+    }
+
+    toast({
+      title: "Processing Error",
+      description: errorMessage,
+      variant: "destructive",
+    });
+
+    setUploadState("initial");
+  };
+
+  // First step: Analyze image
   const analyzeImage = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("image", file);
 
       const response = await apiRequest("POST", "/api/analyze", formData);
-      return response.json() as Promise<ImageAnalysisResponse>;
+      return response.json() as Promise<PartialAnalysisResponse>;
     },
     onMutate: () => {
       setUploadState("uploading");
@@ -42,18 +101,76 @@ export default function ImageUploadArea() {
       const messages = [
         "Analyzing Ghibli contamination...",
         "Identifying fantasy elements...",
-        "Neutralizing excessive whimsy...",
-        "Finalizing clinical detoxification...",
       ];
 
       let messageIndex = 0;
-      const processProgress = 25; // each stage represents 25% progress
+      const processProgress = 40; // first step represents 40% progress
 
       const interval = setInterval(() => {
         if (messageIndex < messages.length - 1) {
           messageIndex++;
           setProcessingMessage(messages[messageIndex]);
-          setProgressPercent((messageIndex + 1) * processProgress);
+          setProgressPercent(
+            ((messageIndex + 1) * processProgress) / messages.length
+          );
+        } else {
+          clearInterval(interval);
+        }
+      }, 2000);
+
+      return () => clearInterval(interval);
+    },
+    onSuccess: (data) => {
+      setPartialAnalysis(data);
+      setUploadState("partial_results");
+      setProgressPercent(50); // First phase complete
+
+      // Automatically proceed to generate the detoxified image
+      if (data) {
+        generateDetoxifiedImage.mutate({
+          originalImageKey: data.originalImageKey || "",
+          promptForDalle: data.promptForDalle || "",
+          diagnosisPoints: data.diagnosisPoints,
+          contaminationLevel: data.contaminationLevel,
+        });
+      }
+    },
+    onError: (error: any) => {
+      handleApiError(error);
+    },
+  });
+
+  // Second step: Generate detoxified image
+  const generateDetoxifiedImage = useMutation({
+    mutationFn: async (data: {
+      originalImageKey: string;
+      promptForDalle: string;
+      diagnosisPoints: string[];
+      contaminationLevel: number;
+    }) => {
+      const response = await apiRequest("POST", "/api/generate", data);
+      return response.json() as Promise<ImageCreationResponse>;
+    },
+    onMutate: () => {
+      setUploadState("generating");
+      setProcessingMessage("Creating detoxified image...");
+
+      // Simulate state changes for a better UX
+      const messages = [
+        "Neutralizing excessive whimsy...",
+        "Finalizing clinical detoxification...",
+      ];
+
+      let messageIndex = 0;
+      const startProgress = 50; // Starting from 50% after analysis
+      const endProgress = 90; // End at 90% (leave 10% for loading the image)
+      const progressStep = (endProgress - startProgress) / messages.length;
+
+      const interval = setInterval(() => {
+        if (messageIndex < messages.length) {
+          setProcessingMessage(messages[messageIndex]);
+          setProgressPercent(startProgress + (messageIndex + 1) * progressStep);
+          messageIndex++;
         } else {
           clearInterval(interval);
         }
@@ -62,48 +179,26 @@ export default function ImageUploadArea() {
       return () => clearInterval(interval);
     },
     onSuccess: (data) => {
-      setAnalysis(data);
-      setUploadState("results");
+      if (partialAnalysis) {
+        // Combine partial analysis with treatment data
+        const fullAnalysis: ImageAnalysisResponse = {
+          id: data.id,
+          diagnosisPoints: partialAnalysis.diagnosisPoints || [],
+          treatmentPoints: data.treatmentPoints || [],
+          contaminationLevel: partialAnalysis.contaminationLevel || 50,
+          detoxifiedImageUrl: data.detoxifiedImageUrl || "",
+          originalImageUrl: partialAnalysis.originalImageUrl || "",
+          description: partialAnalysis.description,
+          shareableUrl: `/deghib/${data.id}`,
+        };
+
+        setAnalysis(fullAnalysis);
+        setCreationTime(new Date()); // Record when the image was created for deletion window
+        setUploadState("results");
+      }
     },
     onError: (error: any) => {
-      let errorMessage = "Failed to analyze image";
-
-      // Extract the error message if available
-      if (
-        error.response &&
-        typeof error.responseBody === "object" &&
-        error.responseBody.message
-      ) {
-        errorMessage = error.responseBody.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      } else {
-        errorMessage = "Unknown error occurred";
-      }
-
-      // Provide more specific messages for common errors
-      if (
-        errorMessage.includes("invalid_image_format") ||
-        errorMessage.includes("Image format error") ||
-        errorMessage.includes("Invalid input image")
-      ) {
-        errorMessage =
-          "Image format error: Please upload a valid JPG, PNG, or WEBP file. The image will be automatically converted to PNG with transparency for processing.";
-      } else if (
-        errorMessage.includes("file too large") ||
-        errorMessage.includes("exceeds the size limit")
-      ) {
-        errorMessage =
-          "Image is too large. Please upload an image smaller than 4MB.";
-      }
-
-      toast({
-        title: "Processing Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-
-      setUploadState("initial");
+      handleApiError(error);
     },
   });
 
@@ -116,6 +211,9 @@ export default function ImageUploadArea() {
     maxSize: 10 * 1024 * 1024, // 10MB
     multiple: false,
     disabled: uploadState !== "initial",
+    useFsAccessApi: false, // Disable File System Access API for faster initialization
+    noKeyboard: true, // Disable keyboard events for performance
+    preventDropOnDocument: true, // Prevent document-wide drag events for better performance
     onDrop: (acceptedFiles, rejectedFiles) => {
       if (rejectedFiles.length > 0) {
         const error = rejectedFiles[0].errors[0];
@@ -148,7 +246,9 @@ export default function ImageUploadArea() {
       URL.revokeObjectURL(originalImage);
     }
     setOriginalImage(null);
+    setPartialAnalysis(null);
     setAnalysis(null);
+    setCreationTime(null);
     setUploadState("initial");
   };
 
@@ -163,31 +263,40 @@ export default function ImageUploadArea() {
     }
   };
 
-  // This function is kept for reference in case any button is still using it
-  const handleShare = () => {
-    if (!analysis?.shareableUrl) return;
+  const handleDeleteImage = () => {
+    // Only allow deletion within 2 minutes of creation
+    if (!analysis?.id || !creationTime) return;
 
-    // Get the full URL including domain
-    const fullShareableUrl = window.location.origin + analysis.shareableUrl;
+    const currentTime = new Date();
+    const timeDiffInMinutes =
+      (currentTime.getTime() - creationTime.getTime()) / (1000 * 60);
 
-    if (navigator.share) {
-      // Use Web Share API if available
-      navigator
-        .share({
-          title: "My Ghibli Detoxified Image",
-          text: "Check out this image detoxified by Ghibli Detox Clinic!",
-          url: fullShareableUrl,
-        })
-        .catch((error) => {
-          toast({
-            title: "Sharing Failed",
-            description: "Could not share the results: " + error.message,
-            variant: "destructive",
-          });
-        });
-    } else {
-      // Fallback to copying URL to clipboard
-      handleCopyLink();
+    if (timeDiffInMinutes > 2) {
+      toast({
+        title: "Deletion Not Allowed",
+        description:
+          "Images can only be deleted within 2 minutes of creation. Please contact support for removal requests.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Proceed with deletion
+    try {
+      apiRequest("DELETE", `/api/images/${analysis.id}`);
+      toast({
+        title: "Image Deleted",
+        description:
+          "Your image has been successfully deleted from our servers.",
+      });
+      handleRestart();
+    } catch (error) {
+      toast({
+        title: "Deletion Failed",
+        description:
+          "Failed to delete image. Please try again or contact support.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -259,24 +368,109 @@ export default function ImageUploadArea() {
       });
   };
 
+  // Calculate if the image is deletable (within 2 minutes of creation)
+  const canDeleteImage = () => {
+    if (!creationTime) return false;
+
+    const currentTime = new Date();
+    const timeDiffInMinutes =
+      (currentTime.getTime() - creationTime.getTime()) / (1000 * 60);
+
+    return timeDiffInMinutes <= 2;
+  };
+
+  const renderPartialResults = () => {
+    if (!partialAnalysis || !originalImage) return null;
+
+    return (
+      <div>
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Original Image with diagnosis */}
+          <div className="flex-1 ai-card">
+            <div className="bg-gradient-to-r from-rose-500 to-pink-600 px-3 py-2 text-center text-sm font-medium text-white">
+              Contaminated
+            </div>
+            <div className="p-4">
+              <img
+                src={originalImage}
+                alt="Original Ghibli-contaminated image"
+                className="w-full h-64 object-cover rounded-lg shadow-sm"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+
+          {/* Right side - treatment in progress */}
+          <div className="flex-1 ai-card">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-3 py-2 text-center text-sm font-medium text-white">
+              Treatment in Progress
+            </div>
+            <div className="p-8 flex flex-col items-center justify-center h-64">
+              <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin mb-4"></div>
+              <p className="text-sm font-medium text-gray-700">
+                {processingMessage}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                Generating realistic image...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Show partial diagnosis */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+          <h3 className="text-lg font-medium mb-2 text-blue-700">
+            Clinical Diagnosis
+          </h3>
+          <ul className="list-disc pl-5 space-y-1">
+            {partialAnalysis.diagnosisPoints.map((point, index) => (
+              <li key={index} className="text-sm text-gray-700">
+                {point}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Contamination Level Meter */}
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <h3 className="text-sm font-medium mb-3 text-gray-700">
+            Ghibli Contamination Level
+          </h3>
+          <div className="h-5 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+            <div
+              className="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${partialAnalysis.contaminationLevel}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs mt-2 text-gray-600 font-medium">
+            <span>Mild</span>
+            <span>Moderate</span>
+            <span>Severe</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="ai-card max-w-4xl mx-auto my-8">
       <div className="p-6">
-        <h2 className="text-xl font-semibold mb-4 text-blue-800 text-center">
-          Ghibli Contamination Analysis
+      <h2 className="text-xl font-semibold mb-4 text-blue-800 text-center">
+      Ghibli Contamination Analysis
         </h2>
 
         {uploadState === "initial" && (
           <div
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300
-              ${
-                isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-200"
-              }`}
-            {...getRootProps()}
-          >
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300
+            ${
+              isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-200"
+            }`}
+          {...getRootProps()}
+        >
             <div className="space-y-4">
-              <CloudUpload className="h-16 w-16 mx-auto text-blue-500" />
-              <h3 className="text-lg font-medium text-gray-800">
+            <CloudUpload className="h-16 w-16 mx-auto text-blue-500" />
+            <h3 className="text-lg font-medium text-gray-800">
                 Upload an image for detoxification
               </h3>
               <p className="text-sm text-gray-600">
@@ -312,7 +506,7 @@ export default function ImageUploadArea() {
           </div>
         )}
 
-        {uploadState === "uploading" && (
+        {(uploadState === "uploading" || uploadState === "generating") && (
           <div className="border-2 border-blue-100 rounded-xl p-8 text-center bg-blue-50">
             <div className="space-y-4">
               <div className="relative w-20 h-20 mx-auto">
@@ -323,9 +517,9 @@ export default function ImageUploadArea() {
                 <div
                   className="absolute inset-0 rounded-full"
                   style={{
-                    background: `conic-gradient(#3B82F6 ${progressPercent}%, transparent ${progressPercent}%)`,
+                    background: `conic-gradient(#0EA5E9 ${progressPercent}%, transparent ${progressPercent}%)`,
                     clipPath: "circle(50% at center)",
-                    transform: "scale(0.95)", // Scale slightly to fix edge gap issue
+                    transform: "scale(0.95)",
                   }}
                 ></div>
 
@@ -334,22 +528,16 @@ export default function ImageUploadArea() {
 
                 {/* Progress text in the center */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className="text-sm font-bold"
-                    style={{
-                      color: "#333333",
-                      textShadow: "0px 0px 1px rgba(255,255,255,0.8)",
-                    }}
-                  >
+                  <span className="text-sm font-bold text-gray-700">
                     {progressPercent}%
                   </span>
                 </div>
               </div>
 
-              <h3 className="text-lg font-medium text-blue-800">
+              <h3 className="text-lg font-medium text-gray-800">
                 {processingMessage}
               </h3>
-              <p className="text-sm text-blue-600">
+              <p className="text-sm text-gray-600">
                 Our AI doctors are examining your image for signs of excessive
                 whimsy
               </p>
@@ -357,6 +545,10 @@ export default function ImageUploadArea() {
           </div>
         )}
 
+        {/* Show partial results while generating the detoxified image */}
+        {uploadState === "partial_results" && renderPartialResults()}
+
+        {/* Final results with both images and full diagnosis */}
         {uploadState === "results" && analysis && originalImage && (
           <div>
             <div className="flex flex-col md:flex-row gap-6">
@@ -370,14 +562,16 @@ export default function ImageUploadArea() {
                     src={originalImage}
                     alt="Original Ghibli-contaminated image"
                     className="w-full h-64 object-cover rounded-lg shadow-sm"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>
 
               {/* After Image */}
               <div className="flex-1 ai-card">
-                <div className="bg-gradient-to-r from-green-500 to-teal-600 px-3 py-2 text-center text-sm font-medium text-white">
-                  Detoxified
+              <div className="bg-gradient-to-r from-green-500 to-teal-600 px-3 py-2 text-center text-sm font-medium text-white">
+              Detoxified
                 </div>
                 <div className="p-4 relative">
                   {/* Loading overlay */}
@@ -386,8 +580,8 @@ export default function ImageUploadArea() {
                     style={{ display: detoxImageLoaded ? "none" : "flex" }}
                   >
                     <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
-                      <p className="mt-2 text-sm font-medium text-blue-700">
+                    <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
+                    <p className="mt-2 text-sm font-medium text-blue-700">
                         Loading detoxified image...
                       </p>
                     </div>
@@ -396,6 +590,8 @@ export default function ImageUploadArea() {
                     src={analysis.detoxifiedImageUrl}
                     alt="Detoxified image"
                     className="w-full h-64 object-cover rounded-lg shadow-sm"
+                    loading="lazy"
+                    decoding="async"
                     onLoad={() => setDetoxImageLoaded(true)}
                   />
                 </div>
@@ -441,7 +637,25 @@ export default function ImageUploadArea() {
               >
                 <RefreshCw className="h-4 w-4 inline mr-1" /> Start Over
               </button>
-              <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+
+              {/* Delete button - only visible within 2 minutes of creation */}
+              {canDeleteImage() && (
+                <button
+                  className="ai-button-secondary"
+                  style={{
+                    borderRadius: "0.375rem",
+                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                    borderColor: "rgba(239, 68, 68, 0.3)",
+                    color: "rgb(220, 38, 38)",
+                  }}
+                  onClick={handleDeleteImage}
+                >
+                  <Trash2 className="h-4 w-4 inline mr-1" /> Delete Image
+                </button>
+              )}
+
+              {/* Share buttons with responsive sizing - hidden on mobile */}
+              <div className="hidden md:flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
                 <button
                   className="ai-button-secondary text-xs md:text-sm px-2 py-1 md:px-3 md:py-2"
                   style={{
@@ -475,12 +689,24 @@ export default function ImageUploadArea() {
                   <Twitter className="h-3 w-3 md:h-4 md:w-4 inline mr-1" />{" "}
                   Twitter
                 </button>
+
                 <button
                   className="ai-button-secondary text-xs md:text-sm px-2 py-1 md:px-3 md:py-2"
                   style={{ borderRadius: "0.375rem" }}
                   onClick={handleCopyLink}
                 >
                   <Copy className="h-3 w-3 md:h-4 md:w-4 inline mr-1" /> Copy
+                </button>
+              </div>
+
+              {/* Mobile share button - only visible on mobile */}
+              <div className="md:hidden">
+                <button
+                  className="ai-button-secondary"
+                  style={{ borderRadius: "0.375rem" }}
+                  onClick={handleNativeShare}
+                >
+                  <Share className="h-4 w-4 inline mr-1" /> Share
                 </button>
               </div>
             </div>

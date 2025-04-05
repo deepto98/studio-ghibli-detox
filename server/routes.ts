@@ -6,11 +6,19 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import OpenAI from "openai";
-import { ImageAnalysisResponse, InsertImage, Image } from "@shared/schema";
+import { ImageAnalysisResponse, InsertImage, Image, PartialAnalysisResponse, ImageCreationResponse } from "@shared/schema";
 import { r2Storage } from "./r2-storage";
+import { deleteFileFromR2 } from "./r2";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
-import { deleteFileFromR2 } from "./r2";
+
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
+
+// Get max deghibs per day from .env file (default to 3 if not specified)
+const MAX_DEGHIBS_PER_DAY = parseInt(process.env.MAX_DEGHIBS_PER_DAY || "3", 10);
 
 // Define a custom Request interface with file from multer
 interface MulterRequest extends Request {
@@ -69,9 +77,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         keyGenerator: (req) => {
             // Use the client's IP address as the rate limit key
-            const clientIP = req.ip ||
-                req.headers['x-forwarded-for'] ||
-                req.socket.remoteAddress ||
+            const clientIP = req.clientIp ||
+                // req.headers['x-forwarded-for'] ||
+                // req.socket.remoteAddress ||
                 'unknown';
             console.log(`Rate limit check for IP: ${clientIP}`);
             return typeof clientIP === 'string' ? clientIP : Array.isArray(clientIP) ? clientIP[0] : 'unknown';
@@ -80,6 +88,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skip: (req, res) => false // Don't skip any requests
     });
 
+    const generateRateLimiter = rateLimit({
+        windowMs: 24 * 60 * 60 * 1000, // 24 hours
+        limit: rateLimitRequests, // limit each IP to X requests per day defined in .env
+        standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+        legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+        message: {
+            message: `You've reached your daily limit of ${rateLimitRequests} deghibs. Please try again tomorrow.`
+        },
+        keyGenerator: (req) => {
+            // Use the client's IP address as the rate limit key
+            const clientIP = req.clientIp ||
+                // req.headers['x-forwarded-for'] ||
+                // req.socket.remoteAddress ||
+                'unknown';
+            console.log(`Rate limit check for IP: ${clientIP}`);
+            return typeof clientIP === 'string' ? clientIP : Array.isArray(clientIP) ? clientIP[0] : 'unknown';
+        },
+        skipSuccessfulRequests: false, // Count all requests toward the limit
+        skip: (req, res) => false // Don't skip any requests
+    });
+    
     // Endpoint to get total count of deghibs
     app.get("/api/stats/count", async (req, res) => {
         try {
@@ -187,10 +216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
     });
 
-    // Endpoint to analyze image and generate detoxified version
+    // Step 1: Analyze image and return preliminary results
     app.post(
         "/api/analyze",
-        analyzeRateLimiter,
+        analyzeRateLimiter, // Apply rate limiter to this endpoint
         upload.single("image"),
         async (req: MulterRequest, res: Response) => {
             try {
@@ -210,6 +239,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Upload original image to R2
                 const contentType = req.file.mimetype;
                 const originalImageKey = await r2Storage.uploadImage(imageBuffer, contentType);
+                // Get original image URL
+                const originalImgUrl = await r2Storage.getImageUrl(originalImageKey);
+
                 console.log("Original image uploaded to R2 with key:", originalImageKey);
 
                 // Analyze image with OpenAI Vision
@@ -247,69 +279,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 );
                 console.log("Analysis:", analysis);
 
-                // Create new image based on description of the original but without Ghibli elements
+                // Get the scene description
                 const sceneDescription = analysis.description || "";
 
                 // Create prompt for the image generation
                 const detoxPrompt = `Scene: ${sceneDescription} \nCreate a realistic photographic image that represents what this scene would look like in real life, completely free of any Studio Ghibli or anime aesthetics.`;
 
-                console.log("Detox prompt:", detoxPrompt);
-                // Use image generation with the original as reference
-                const imageResponse = await openai.images.generate({
-                    model: "dall-e-3", // Using DALL-E 3 for better quality and control
-                    prompt: detoxPrompt,
-                    n: 1,
-                    size: "1024x1024",
-                    quality: "hd",
-                });
-
-                // Get detoxified image URL and download it
-                const detoxifiedImageUrl = imageResponse.data[0].url || "";
-
-                // Download the detoxified image and upload to R2
-                const detoxifiedImageResponse = await axios.get(detoxifiedImageUrl, { responseType: 'arraybuffer' });
-                const detoxifiedImageBuffer = Buffer.from(detoxifiedImageResponse.data);
-
-                // Upload detoxified image to R2
-                const detoxifiedImageKey = await r2Storage.uploadImage(detoxifiedImageBuffer, 'image/png');
-                console.log("Detoxified image uploaded to R2 with key:", detoxifiedImageKey);
-
-                // Get the signed URLs for both images (for direct response to client)
-                const originalImgUrl = await r2Storage.getImageUrl(originalImageKey);
-                const detoxifiedImgUrl = await r2Storage.getImageUrl(detoxifiedImageKey);
-
-                // Save data to database
-                const imageData: InsertImage = {
-                    originalImageKey: originalImageKey,
-                    detoxifiedImageKey: detoxifiedImageKey,
+                // Return partial results first
+                const partialResult: PartialAnalysisResponse = {
                     diagnosisPoints: analysis.diagnosis_points || [],
-                    treatmentPoints: analysis.treatment_points || [],
                     contaminationLevel: analysis.contamination_level || 50,
-                    userId: null, // No user authentication for now
-                    description: sceneDescription,
-                    isPublic: true,  // All images are public by default
-                };
-
-                const savedImage = await database.saveImage(imageData);
-
-                // Create response with link to shareable page
-                const result: ImageAnalysisResponse = {
-                    id: savedImage.id,
-                    diagnosisPoints: analysis.diagnosis_points || [],
-                    treatmentPoints: analysis.treatment_points || [],
-                    contaminationLevel: analysis.contamination_level || 50,
-                    detoxifiedImageUrl: detoxifiedImgUrl,
                     originalImageUrl: originalImgUrl,
-                    shareableUrl: `/deghib/${savedImage.id}`,
-                    description: sceneDescription
+                    description: sceneDescription,
+                    originalImageKey: originalImageKey,
+                    promptForDalle: detoxPrompt
                 };
 
                 // Remove temporary file from uploads directory
                 fs.unlinkSync(imagePath);
 
-                res.status(200).json(result);
+                res.status(200).json(partialResult);
             } catch (error: any) {
-                console.error("Error processing image:", error);
+                console.error("Error processing image analysis:", error);
 
                 let errorMessage = "Error processing image";
                 let statusCode = 500;
@@ -345,8 +336,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
         },
     );
+    // Step 2: Generate detoxified image
+    app.post("/api/generate", generateRateLimiter, async (req, res) => {
+        try {
+            // Extract information from the request body
+            const { originalImageKey, promptForDalle, diagnosisPoints, contaminationLevel } = req.body;
 
-    // Delete image endpoint
+            if (!originalImageKey || !promptForDalle) {
+                return res.status(400).json({ message: "Missing required parameters" });
+            }
+
+            console.log("Generating detoxified image with prompt:", promptForDalle);
+
+            // Generate the detoxified image using DALL-E
+            const imageResponse = await openai.images.generate({
+                model: "dall-e-3", // Using DALL-E 3 for better quality and control
+                prompt: promptForDalle,
+                n: 1,
+                size: "1024x1024",
+                quality: "hd",
+            });
+
+            // Get detoxified image URL and download it
+            const detoxifiedImageUrl = imageResponse.data[0].url || "";
+
+            // Download the detoxified image and upload to R2
+            const detoxifiedImageResponse = await axios.get(detoxifiedImageUrl, { responseType: 'arraybuffer' });
+            const detoxifiedImageBuffer = Buffer.from(detoxifiedImageResponse.data);
+
+            // Upload detoxified image to R2
+            const detoxifiedImageKey = await r2Storage.uploadImage(detoxifiedImageBuffer, 'image/png');
+            console.log("Detoxified image uploaded to R2 with key:", detoxifiedImageKey);
+
+            // Generate treatment points (these come from the DALL-E response analysis)
+            const treatmentPoints = [
+                "Careful removal of whimsical elements",
+                "Realistic color palette restoration",
+                "Natural perspective alignment"
+            ];
+
+            // Save data to database
+            const imageData: InsertImage = {
+                originalImageKey: originalImageKey,
+                detoxifiedImageKey: detoxifiedImageKey,
+                diagnosisPoints: diagnosisPoints || [],
+                treatmentPoints: treatmentPoints,
+                contaminationLevel: contaminationLevel || 50,
+                userId: null, // No user authentication for now
+                description: promptForDalle.split('\n')[0].replace('Scene: ', ''),
+                isPublic: true,  // All images are public by default
+            };
+
+            const savedImage = await database.saveImage(imageData);
+
+            // Create response with the detoxified image and treatment info
+            const result: ImageCreationResponse = {
+                id: savedImage.id,
+                treatmentPoints: treatmentPoints,
+                detoxifiedImageUrl: detoxifiedImageUrl
+            };
+
+            res.status(200).json(result);
+        } catch (error: any) {
+            console.error("Error generating detoxified image:", error);
+            res.status(500).json({
+                message: "Error generating detoxified image",
+                error: error.message || "Unknown error occurred"
+            });
+        }
+    });
+
+
+    // Delete image endpoint with time-based validation (2-minute window)
     app.delete("/api/images/:id", async (req, res) => {
         try {
             const imageId = parseInt(req.params.id);
@@ -354,10 +415,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(400).json({ message: "Invalid image ID" });
             }
 
-            // Get the image first to retrieve the image keys
+            // Get the image first to retrieve the image keys and created timestamp
             const image = await database.getImage(imageId);
             if (!image) {
                 return res.status(404).json({ message: "Image not found" });
+            }
+
+            // Check if the image was created within the last 2 minutes
+            const createdAt = image.createdAt;
+            if (createdAt) {
+                const currentTime = new Date();
+                const imageCreationTime = new Date(createdAt);
+                const timeDiffInMinutes = (currentTime.getTime() - imageCreationTime.getTime()) / (1000 * 60);
+
+                if (timeDiffInMinutes > 2) {
+                    return res.status(403).json({
+                        message: "Images can only be deleted within 2 minutes of creation. Please contact support for removal requests.",
+                        timeSinceCreation: Math.round(timeDiffInMinutes)
+                    });
+                }
             }
 
             // Delete the image from the database
