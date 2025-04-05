@@ -10,6 +10,7 @@ import { ImageAnalysisResponse, InsertImage, Image } from "@shared/schema";
 import { r2Storage } from "./r2-storage";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
+import { deleteFileFromR2 } from "./r2";
 
 // Define a custom Request interface with file from multer
 interface MulterRequest extends Request {
@@ -333,6 +334,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
         },
     );
+
+    // Delete image endpoint
+    app.delete("/api/images/:id", async (req, res) => {
+        try {
+            const imageId = parseInt(req.params.id);
+            if (isNaN(imageId)) {
+                return res.status(400).json({ message: "Invalid image ID" });
+            }
+
+            // Get the image first to retrieve the image keys
+            const image = await database.getImage(imageId);
+            if (!image) {
+                return res.status(404).json({ message: "Image not found" });
+            }
+
+            // Delete the image from the database
+            await database.deleteImage(imageId);
+
+            // Delete the image files from R2 storage
+            if (image.originalImageKey) {
+                await deleteFileFromR2(image.originalImageKey);
+            }
+
+            if (image.detoxifiedImageKey) {
+                await deleteFileFromR2(image.detoxifiedImageKey);
+            }
+
+            return res.status(200).json({
+                message: "Image successfully deleted",
+                id: imageId
+            });
+        } catch (error: any) {
+            console.error("Error deleting image:", error);
+            return res.status(500).json({
+                message: "An error occurred while deleting the image",
+                error: error.message
+            });
+        }
+    });
 
     const httpServer = createServer(app);
 

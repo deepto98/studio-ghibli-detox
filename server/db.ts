@@ -21,6 +21,7 @@ export interface IDatabase {
     getUserImages(userId: number): Promise<typeof images.$inferSelect[]>;
     getAllImages(): Promise<typeof images.$inferSelect[]>;
     getAllPublicImages(): Promise<typeof images.$inferSelect[]>;
+    deleteImage(id: number): Promise<typeof images.$inferSelect | undefined>;
 }
 
 export class DrizzleDatabase implements IDatabase {
@@ -71,6 +72,21 @@ export class DrizzleDatabase implements IDatabase {
             .from(images)
             .where(eq(images.isPublic, true))
             .orderBy(desc(images.createdAt));
+    }
+
+
+    async deleteImage(id: number): Promise<typeof images.$inferSelect | undefined> {
+        // First, get the image to return it after deletion
+        const image = await this.getImage(id);
+        if (!image) {
+            return undefined;
+        }
+
+        // Delete the image from the database
+        await db.delete(images).where(eq(images.id, id));
+
+        // Return the deleted image data
+        return image;
     }
 }
 
