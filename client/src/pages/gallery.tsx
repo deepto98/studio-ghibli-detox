@@ -272,9 +272,6 @@ export default function Gallery() {
                     <img
                       src={item.detoxifiedImageUrl || undefined}
                       alt="Detoxified image"
-                      loading="lazy"
-                      decoding="async"
-                      fetchPriority={item.id <= 3 ? "high" : "low"}
                       className={`object-contain w-full h-full p-2 transition-opacity duration-700 ${
                         hoveredItem === item.id ||
                         autoTransitionItems.includes(item.id)
@@ -287,9 +284,6 @@ export default function Gallery() {
                     <img
                       src={item.originalImageUrl || undefined}
                       alt="Original Ghibli image"
-                      loading="lazy"
-                      decoding="async"
-                      fetchPriority="low"
                       className={`object-contain w-full h-full p-2 absolute inset-0 transition-opacity duration-700 ${
                         hoveredItem === item.id ||
                         autoTransitionItems.includes(item.id)
